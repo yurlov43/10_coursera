@@ -5,14 +5,14 @@ from bs4 import BeautifulSoup
 from openpyxl import Workbook
 
 
-def get_courses_list(request_link):
+def get_courses_list(request_link, number_courses):
     xml_content = requests.get(request_link).content
     xml_tree = etree.fromstring(xml_content)
     courses_link = []
     for url_tag in xml_tree.getchildren():
         for loc_tag in url_tag.getchildren():
             courses_link.append(loc_tag.text)
-    return random.sample(courses_link, 20)
+    return random.sample(courses_link, number_courses)
 
 
 def get_course_info(course_link):
@@ -52,7 +52,8 @@ def output_courses_info_to_xlsx(filepath, courses_info):
 
 if __name__ == '__main__':
     request_link = 'https://www.coursera.org/sitemap~www~courses.xml'
-    courses_link = get_courses_list(request_link)
+    number_courses = 20
+    courses_link = get_courses_list(request_link, number_courses)
     courses_info = []
     for course_link in courses_link:
         print(course_link)
