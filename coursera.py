@@ -5,9 +5,12 @@ from bs4 import BeautifulSoup
 from openpyxl import Workbook
 
 
-def get_courses_list(request_link, number_courses):
+def get_xml_tree(request_link):
     xml_content = requests.get(request_link).content
-    xml_tree = etree.fromstring(xml_content)
+    return etree.fromstring(xml_content)
+
+
+def get_random_courses_links(xml_tree, number_courses):
     courses_link = []
     for url_tag in xml_tree.getchildren():
         for loc_tag in url_tag.getchildren():
@@ -15,48 +18,77 @@ def get_courses_list(request_link, number_courses):
     return random.sample(courses_link, number_courses)
 
 
-def get_course_info(course_link):
-    html_page = requests.get(course_link).text
-    html_tree = BeautifulSoup(html_page, 'html.parser')
-    course_info = []
-    course_info.append(html_tree.find(
-        'h1',
-        class_='title display-3-text').getText())
-    course_info.append(html_tree.find(
-        'div',
-        class_='rc-Language').getText())
-    course_info.append(html_tree.find(
-        'div',
-        class_='startdate rc-StartDateString caption-text').getText())
+def get_html_tree(course_link):
+    html_page = requests.get(course_link)
+    html_page.encoding = 'utf-8-sig'
+    html_text = html_page.text
+    return BeautifulSoup(html_text, 'html.parser')
+
+
+def get_course_info(html_tree):
+    course_info = dict(
+        name=html_tree.find(
+            'h1',
+            class_='title display-3-text').getText(),
+        language=html_tree.find(
+            'div',
+            class_='rc-Language').getText(),
+        start_date=html_tree.find(
+            'div',
+            class_='startdate rc-StartDateString caption-text').getText(),
+        rating=None,
+        number_weeks=len(html_tree.findAll(
+            'div',
+            class_='week')),
+        course_link=course_link)
     rating = html_tree.find(
         'div',
         class_='ratings-text headline-2-text')
     if rating:
-        course_info.append(rating.getText())
-    else:
-        course_info.append('None')
-    course_info.append(len(html_tree.findAll(
-            'div',
-            class_='week')))
-    course_info.append(course_link)
+        course_info['rating'] = rating.getText()
     return course_info
 
 
-def output_courses_info_to_xlsx(filepath, courses_info):
-    wb = Workbook()
-    ws = wb.active
+def fill_work_sheet(courses_info, work_sheet):
     for course_info in courses_info:
-        ws.append(course_info)
-    wb.save(filepath)
+        work_sheet.append(list(course_info.values()))
+    return work_sheet
+
+
+def get_maximum_columns_widths(work_sheet):
+    columns_widths = {}
+    for row in work_sheet.rows:
+        for cell in row:
+            if cell.value and cell.column != 'E':
+                columns_widths[cell.column] = max(
+                    columns_widths.get(cell.column, 0),
+                    len(cell.value))
+    return columns_widths
+
+
+def set_columns_widths_by_content(work_sheet, columns_widths):
+    for column, width in columns_widths.items():
+        work_sheet.column_dimensions[column].width = width
+    return work_sheet
 
 
 if __name__ == '__main__':
     request_link = 'https://www.coursera.org/sitemap~www~courses.xml'
     number_courses = 20
-    courses_link = get_courses_list(request_link, number_courses)
+    xml_tree = get_xml_tree(request_link)
+    courses_link = get_random_courses_links(xml_tree, number_courses)
     courses_info = []
-    for course_link in courses_link:
-        print(course_link)
-        courses_info.append(get_course_info(course_link))
-    filepath = 'courses_info.xlsx'
-    output_courses_info_to_xlsx(filepath, courses_info)
+    for course_number, course_link in enumerate(courses_link, start=1):
+        print('{}. {}'.format(course_number, course_link))
+        html_tree = get_html_tree(course_link)
+        courses_info.append(get_course_info(html_tree))
+    filepath = input('Enter the file name: ')
+    if filepath:
+        filepath = filepath + '.xlsx'
+    else:
+        filepath = 'courses_info.xlsx'
+    work_book = Workbook()
+    work_sheet = fill_work_sheet(courses_info, work_book.active)
+    columns_widths = get_maximum_columns_widths(work_sheet)
+    work_sheet = set_columns_widths_by_content(work_sheet, columns_widths)
+    work_book.save(filepath)
