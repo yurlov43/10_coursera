@@ -62,8 +62,7 @@ def set_columns_widths_by_content(work_sheet):
         for cell in column:
             if cell.value:
                 content_width = len(str(cell.value))
-                if content_width > max_width:
-                    max_width = content_width
+                max_width = max(content_width, max_width)
         work_sheet.column_dimensions[column_name].width = max_width + 2
     return work_sheet
 
