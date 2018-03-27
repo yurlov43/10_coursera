@@ -55,28 +55,21 @@ def fill_work_sheet(courses_info, work_sheet):
     return work_sheet
 
 
-def get_maximum_columns_widths(work_sheet):
-    columns_widths = {}
-    for row in work_sheet.rows:
-        for cell in row:
-            if cell.value and cell.column != 'E':
-                column_width = columns_widths.get(cell.column, 0)
-                width_of_text = len(cell.value)
-                columns_widths[cell.column] = max(
-                    column_width,
-                    width_of_text)
-    return columns_widths
-
-
-def set_columns_widths_by_content(work_sheet, columns_widths):
-    for column, width in columns_widths.items():
-        work_sheet.column_dimensions[column].width = width
+def set_columns_widths_by_content(work_sheet):
+    for column in work_sheet.columns:
+        max_width = 0
+        column_name = column[0].column
+        for cell in column:
+            if cell.value:
+                if len(str(cell.value)) > max_width:
+                    max_width = len(str(cell.value))
+        work_sheet.column_dimensions[column_name].width = max_width + 2
     return work_sheet
 
 
 if __name__ == '__main__':
     request_link = 'https://www.coursera.org/sitemap~www~courses.xml'
-    number_courses = 20
+    number_courses = 2
     xml_tree = get_xml_tree(request_link)
     courses_link = get_random_courses_links(xml_tree, number_courses)
     courses_info = []
@@ -90,7 +83,7 @@ if __name__ == '__main__':
     else:
         filepath = 'courses_info.xlsx'
     work_book = Workbook()
-    work_sheet = fill_work_sheet(courses_info, work_book.active)
-    columns_widths = get_maximum_columns_widths(work_sheet)
-    work_sheet = set_columns_widths_by_content(work_sheet, columns_widths)
+    work_sheet = work_book.active
+    work_sheet = fill_work_sheet(courses_info, work_sheet)
+    work_sheet = set_columns_widths_by_content(work_sheet)
     work_book.save(filepath)
