@@ -60,9 +60,11 @@ def get_maximum_columns_widths(work_sheet):
     for row in work_sheet.rows:
         for cell in row:
             if cell.value and cell.column != 'E':
+                column_width = columns_widths.get(cell.column, 0)
+                width_of_text = len(cell.value)
                 columns_widths[cell.column] = max(
-                    columns_widths.get(cell.column, 0),
-                    len(cell.value))
+                    column_width,
+                    width_of_text)
     return columns_widths
 
 
