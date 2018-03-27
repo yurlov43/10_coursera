@@ -61,15 +61,16 @@ def set_columns_widths_by_content(work_sheet):
         column_name = column[0].column
         for cell in column:
             if cell.value:
-                if len(str(cell.value)) > max_width:
-                    max_width = len(str(cell.value))
+                content_width = len(str(cell.value))
+                if content_width > max_width:
+                    max_width = content_width
         work_sheet.column_dimensions[column_name].width = max_width + 2
     return work_sheet
 
 
 if __name__ == '__main__':
     request_link = 'https://www.coursera.org/sitemap~www~courses.xml'
-    number_courses = 2
+    number_courses = 20
     xml_tree = get_xml_tree(request_link)
     courses_link = get_random_courses_links(xml_tree, number_courses)
     courses_info = []
