@@ -1,16 +1,26 @@
 import requests
+import argparse
 from lxml import etree
 import random
 from bs4 import BeautifulSoup
 from openpyxl import Workbook
 
 
-def get_xml_tree(request_link):
-    xml_content = requests.get(request_link).content
-    return etree.fromstring(xml_content)
+def parser_arguments():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '-out', '--output',
+        help='Path to result')
+    return parser.parse_args()
 
 
-def get_random_courses_links(xml_tree, number_courses):
+def get_content(link):
+    answer = requests.get(link)
+    return answer.content
+
+
+def get_random_courses_links(xml_content, number_courses):
+    xml_tree = etree.fromstring(xml_content)
     courses_link = []
     for url_tag in xml_tree.getchildren():
         for loc_tag in url_tag.getchildren():
@@ -18,14 +28,8 @@ def get_random_courses_links(xml_tree, number_courses):
     return random.sample(courses_link, number_courses)
 
 
-def get_html_tree(course_link):
-    html_page = requests.get(course_link)
-    html_page.encoding = 'utf-8-sig'
-    html_text = html_page.text
-    return BeautifulSoup(html_text, 'html.parser')
-
-
-def get_course_info(html_tree):
+def get_course_info(html_content, course_link):
+    html_tree = BeautifulSoup(html_content, 'html.parser')
     course_info = dict(
         name=html_tree.find(
             'h1',
@@ -51,7 +55,14 @@ def get_course_info(html_tree):
 
 def fill_work_sheet(courses_info, work_sheet):
     for course_info in courses_info:
-        work_sheet.append(list(course_info.values()))
+        work_sheet.append([
+            course_info['name'],
+            course_info['language'],
+            course_info['start_date'],
+            course_info['rating'],
+            course_info['number_weeks'],
+            course_info['course_link']
+        ])
     return work_sheet
 
 
@@ -68,22 +79,22 @@ def set_columns_widths_by_content(work_sheet):
 
 
 if __name__ == '__main__':
+    arguments = parser_arguments()
+    output_file = arguments.output
+    if not arguments.output:
+        output_file = 'courses_info.xlsx'
     request_link = 'https://www.coursera.org/sitemap~www~courses.xml'
     number_courses = 20
-    xml_tree = get_xml_tree(request_link)
-    courses_link = get_random_courses_links(xml_tree, number_courses)
+    xml_content = get_content(request_link)
+    courses_link = get_random_courses_links(xml_content, number_courses)
     courses_info = []
     for course_number, course_link in enumerate(courses_link, start=1):
         print('{}. {}'.format(course_number, course_link))
-        html_tree = get_html_tree(course_link)
-        courses_info.append(get_course_info(html_tree))
-    filepath = input('Enter the file name: ')
-    if filepath:
-        filepath = filepath + '.xlsx'
-    else:
-        filepath = 'courses_info.xlsx'
+        html_content = get_content(course_link)
+        course_info = get_course_info(html_content, course_link)
+        courses_info.append(course_info)
     work_book = Workbook()
     work_sheet = work_book.active
     work_sheet = fill_work_sheet(courses_info, work_sheet)
     work_sheet = set_columns_widths_by_content(work_sheet)
-    work_book.save(filepath)
+    work_book.save(output_file)
