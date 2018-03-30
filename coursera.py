@@ -10,13 +10,14 @@ def parser_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '-out', '--output',
+        default='courses_info.xlsx',
         help='Path to result')
     return parser.parse_args()
 
 
-def get_content(link):
-    answer = requests.get(link)
-    return answer.content
+def fetch_content(link):
+    response = requests.get(link)
+    return response.content
 
 
 def get_random_courses_links(xml_content, number_courses):
@@ -81,16 +82,14 @@ def set_columns_widths_by_content(work_sheet):
 if __name__ == '__main__':
     arguments = parser_arguments()
     output_file = arguments.output
-    if not arguments.output:
-        output_file = 'courses_info.xlsx'
     request_link = 'https://www.coursera.org/sitemap~www~courses.xml'
     number_courses = 20
-    xml_content = get_content(request_link)
+    xml_content = fetch_content(request_link)
     courses_link = get_random_courses_links(xml_content, number_courses)
     courses_info = []
     for course_number, course_link in enumerate(courses_link, start=1):
         print('{}. {}'.format(course_number, course_link))
-        html_content = get_content(course_link)
+        html_content = fetch_content(course_link)
         course_info = get_course_info(html_content, course_link)
         courses_info.append(course_info)
     work_book = Workbook()
